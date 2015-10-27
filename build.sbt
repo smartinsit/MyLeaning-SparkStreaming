@@ -13,6 +13,9 @@ libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.3.1"
 libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka" % "1.3.1"
 libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.12"
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test"
+libraryDependencies += "org.apache.derby" % "derby" % "10.12.1.1"
+libraryDependencies += "org.apache.spark" %% "spark-streaming-flume" % "1.3.0"
+
 
 assemblySettings
 mergeStrategy in assembly := {
