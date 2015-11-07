@@ -44,6 +44,12 @@ object ScalaTransformLogEvents {
      */
     val newDStream = flumeStream.flatMap { x => transformLog.transformLogData(new String(x.event.getBody().array())) }
 
+    /* Count request type */
+    val transformedRDD = newDStream.transform(functionCountRequestType)
+
+    /* Enable the checkpoint and print values */
+    streamCtx.checkpoint("checkpointDir")
+    transformedRDD.updateStateByKey(functionTotalCount).print(100)
     /*
     End common piece of code for all kind of transform operations
      */
@@ -84,6 +90,10 @@ object ScalaTransformLogEvents {
     newStream.reduceByKey(_+_).print(100)
     println("Last line in the function executeTransformations ")
 
+    /* Start - Windowing Operation */
+    executeWindowsOperations(dStream, streamCtx)
+    /* End - Windowing Operation */
+
   }
 
   def printLogValues(stream:DStream[(String, String)], streamCtx: StreamingContext) {
@@ -110,4 +120,32 @@ object ScalaTransformLogEvents {
     }
   }
 
+  def functionCountRequestType = (rdd:RDD[(String, String)]) => {
+    rdd.filter(f=>f._1.contains("method")).map(x=>(x._2,1)).reduceByKey(_+_)
+  }
+
+  def functionTotalCount = (values: Seq[Int], state: Option[Int]) => {
+    Option(values.sum + state.sum)
+  }
+
+  def executeWindowsOperations(dStream:DStream[(String, String)], streamCtx: StreamingContext) {
+    /* this provides the aggregate count for all response codes */
+    println("Printing count of response code using windown operations")
+    val wStream = dStream.window(Seconds(40), Seconds(20))
+    val respCodeStream = wStream.filter(x=>x._1.contains("respCode")).map(x=>(x._2,1))
+    respCodeStream.reduceByKey(_+_).print(100)
+
+    /* This provides an aggregate count of all response codes
+    by using Window operation in reduce method
+     */
+    println("Printing count of respopnse code using reduceByKeyAndWindow operation")
+    val respCodeStream_1 = dStream.filter(x=>x._1.contains("respCode")).map(x=>(x._2,1))
+    respCodeStream_1.reduceByKeyAndWindow((x: Int, y: Int) => x+y, Seconds(40), Seconds(20)).print(100)
+
+    /* This will apply and print groupByKeyAndWindow in the slide window */
+    println("Applying and printing groupbyKeyAndWindow in a slide window")
+    val respCodeStream_2 = dStream.filter(x=>x._1.contains("respCode")).map(x=>(x._2,1))
+    respCodeStream_2.groupByKeyAndWindow(Seconds(40),Seconds(20)).print(100)
+
+  }
 }
